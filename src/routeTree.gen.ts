@@ -9,8 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RepayRouteImport } from './routes/repay'
+import { Route as LendRouteImport } from './routes/lend'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as BorrowRouteImport } from './routes/borrow'
 import { Route as IndexRouteImport } from './routes/index'
 
+const RepayRoute = RepayRouteImport.update({
+  id: '/repay',
+  path: '/repay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LendRoute = LendRouteImport.update({
+  id: '/lend',
+  path: '/lend',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BorrowRoute = BorrowRouteImport.update({
+  id: '/borrow',
+  path: '/borrow',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +43,72 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/borrow': typeof BorrowRoute
+  '/dashboard': typeof DashboardRoute
+  '/lend': typeof LendRoute
+  '/repay': typeof RepayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/borrow': typeof BorrowRoute
+  '/dashboard': typeof DashboardRoute
+  '/lend': typeof LendRoute
+  '/repay': typeof RepayRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/borrow': typeof BorrowRoute
+  '/dashboard': typeof DashboardRoute
+  '/lend': typeof LendRoute
+  '/repay': typeof RepayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/borrow' | '/dashboard' | '/lend' | '/repay'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/borrow' | '/dashboard' | '/lend' | '/repay'
+  id: '__root__' | '/' | '/borrow' | '/dashboard' | '/lend' | '/repay'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BorrowRoute: typeof BorrowRoute
+  DashboardRoute: typeof DashboardRoute
+  LendRoute: typeof LendRoute
+  RepayRoute: typeof RepayRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/repay': {
+      id: '/repay'
+      path: '/repay'
+      fullPath: '/repay'
+      preLoaderRoute: typeof RepayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lend': {
+      id: '/lend'
+      path: '/lend'
+      fullPath: '/lend'
+      preLoaderRoute: typeof LendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/borrow': {
+      id: '/borrow'
+      path: '/borrow'
+      fullPath: '/borrow'
+      preLoaderRoute: typeof BorrowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +121,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BorrowRoute: BorrowRoute,
+  DashboardRoute: DashboardRoute,
+  LendRoute: LendRoute,
+  RepayRoute: RepayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
