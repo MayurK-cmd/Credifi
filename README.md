@@ -56,6 +56,22 @@ noted as future work — see `PLAN.md` for details.
 🚧 In development for the HSK Chain On-Chain Horizon Hackathon
 (submission deadline: July 11, 2026).
 
+### Deployed contracts (testnet)
+
+| Contract | Address |
+|---|---|
+| `CrediFiOracle` | `0x6345Ec7861cDCf8798F5D40348d91Cdbe077544B` |
+| `CrediFiPool`   | `0x0bFeE39682e4a5CA057A33838d06Ca7b43bF42Cc` |
+
+- Network: HSK Chain testnet (chainId `133`)
+- Deployed: 2026-06-20
+- Treasury: `0x94E637478E80Dc90fe8afC731d45801e9FD9ef01`
+- Relayer:  `0x031A07eB9eC38d6f81579B9b37b2643034d2ba59`
+- Deployer: `0x213C5E563ab04727c5FdDDF271E5BF660e07955D`
+- Full record: `contracts/deployments/hskTestnet.json`
+
+Mainnet pending — run `npm run deploy:mainnet:dry` from `contracts/` before the live deployment.
+
 ## Disclaimer
 
 Experimental hackathon project. Not audited. Do not use with real funds
