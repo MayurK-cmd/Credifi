@@ -6,8 +6,9 @@ import { RequireWallet } from "@/components/RequireWallet";
 import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deposit } from "@/lib/mockData";
 import { useWallet, walletStore } from "@/lib/wallet-store";
+import { useWalletQueries } from "@/hooks/use-wallet-queries";
+import { deposit } from "@/lib/wallet-actions";
 
 export const Route = createFileRoute("/lend")({
   head: () => ({ meta: [{ title: "Lend — CrediFi" }] }),
@@ -21,18 +22,24 @@ export const Route = createFileRoute("/lend")({
 });
 
 function LendPage() {
-  const { pool } = useWallet();
+  const { pool, address } = useWallet();
+  // Mount the queries hook so the pool stats card stays live.
+  useWalletQueries(address);
   const [amount, setAmount] = useState("500");
   const [loading, setLoading] = useState(false);
 
   const onDeposit = async () => {
     const n = parseFloat(amount);
     if (!Number.isFinite(n) || n <= 0) return toast.error("Enter a valid amount");
+    if (!address) return toast.error("Connect a wallet first");
     setLoading(true);
     try {
-      await deposit(n);
+      await deposit({ address: address as `0x${string}`, amountHsk: amount });
       walletStore.addLiquidity(n);
       toast.success(`Deposited ${n} HSK`, { description: `Earning ${pool.supplyApy.toFixed(2)}% APY` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Deposit failed.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

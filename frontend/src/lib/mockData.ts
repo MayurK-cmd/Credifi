@@ -1,8 +1,15 @@
 // =====================================================================
-// MOCK DATA + MOCK ACTIONS
-// Replace everything in this file with real API / wagmi / contract calls.
-// Function names (connectWallet, borrow, deposit, repay) are intentionally
-// kept generic so they can be swapped 1:1 for real implementations.
+// TYPES + PURE CONSTANTS
+//
+// All mock actions (connectWallet / borrow / deposit / repay) and seed
+// data (initialProfile / initialPool / initialLoan) were deleted when the
+// frontend was wired to the backend + HSK Chain. Real implementations
+// live in:
+//   - frontend/src/lib/wallet-actions.ts   (on-chain user actions via viem)
+//   - frontend/src/hooks/use-wallet-queries.ts (backend REST fan-out)
+//
+// The types and constants below stay because they're imported by both
+// the UI components and the new data layer.
 // =====================================================================
 
 export type Tier = "A" | "B" | "C" | "D";
@@ -20,9 +27,9 @@ export interface CreditProfile {
 }
 
 export interface PoolStats {
-  totalLiquidity: number;
-  supplyApy: number;
-  utilization: number;
+  totalLiquidity: number; // display value, post-formatEther
+  supplyApy: number; // percent (e.g. 6.42 = 6.42%)
+  utilization: number; // 0..1
 }
 
 export interface ActiveLoan {
@@ -31,18 +38,15 @@ export interface ActiveLoan {
   interestAccrued: number;
 }
 
+/** Tier → collateral ratio, as a fraction of borrow. Mirrors CrediFiPool BPS constants. */
 export const TIER_RATIOS: Record<Tier, number> = {
-  A: 0.5,
-  B: 0.8,
-  C: 1.2,
-  D: 1.5,
+  A: 0.5, // TIER_A_RATIO_BPS = 5_000
+  B: 0.8, // TIER_B_RATIO_BPS = 8_000
+  C: 1.2, // TIER_C_RATIO_BPS = 12_000
+  D: 1.5, // TIER_D_RATIO_BPS = 15_000
 };
 
-export const MOCK_ADDRESS = "0x4F3a8C2e1D7b6A9f0E5d8C3b2A1F9e7D6c5B9B21";
-
-export const truncate = (addr: string) =>
-  `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-
+/** Derive tier letter from a 0..1000 score. Mirrors CrediFiOracle.computeTier. */
 export const tierFromScore = (score: number): Tier => {
   if (score >= 800) return "A";
   if (score >= 650) return "B";
@@ -50,56 +54,33 @@ export const tierFromScore = (score: number): Tier => {
   return "D";
 };
 
-export const initialProfile: CreditProfile = {
-  score: 720,
-  tier: "B",
-  factors: [
-    { label: "Wallet Age", value: 82 },
-    { label: "Transaction Activity", value: 68 },
-    { label: "Repayment History", value: 91 },
-    { label: "Asset Diversity", value: 54 },
-  ],
-  history: [
-    { day: "W1", score: 640 },
-    { day: "W2", score: 655 },
-    { day: "W3", score: 670 },
-    { day: "W4", score: 690 },
-    { day: "W5", score: 705 },
-    { day: "W6", score: 720 },
-  ],
+/** The 4 factor labels the backend's scoring rule emits. UI ordering matches. */
+export const SCORE_FACTOR_LABELS = [
+  "Wallet Age",
+  "Transaction Activity",
+  "Repayment History",
+  "Asset Diversity",
+] as const;
+
+/** Truncated address for header pills, e.g. "0x4f3a...9b21". */
+export const truncate = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+/**
+ * Empty profile — what the store holds before the backend responds. Same
+ * shape as `initialProfile` from the mock-data version, but with score 0
+ * and zeroed factors. The dashboard renders this state for ~1 frame on
+ * first connection; the queries hook replaces it within ~10ms.
+ */
+export const emptyProfile: CreditProfile = {
+  score: 0,
+  tier: "D",
+  factors: SCORE_FACTOR_LABELS.map((label) => ({ label, value: 0 })),
+  history: [],
 };
 
-export const initialPool: PoolStats = {
-  totalLiquidity: 1_284_500,
-  supplyApy: 6.42,
-  utilization: 0.73,
+/** Empty pool stats — used as the store's initial state until /api/pool/stats resolves. */
+export const emptyPoolStats: PoolStats = {
+  totalLiquidity: 0,
+  supplyApy: 0,
+  utilization: 0,
 };
-
-export const initialLoan: ActiveLoan = {
-  borrowed: 250,
-  collateral: 200,
-  interestAccrued: 3.74,
-};
-
-// ----- mock async actions (swap with real chain calls) -----
-const wait = (ms = 900) => new Promise((r) => setTimeout(r, ms));
-
-export async function connectWallet(): Promise<{ address: string }> {
-  await wait(600);
-  return { address: MOCK_ADDRESS };
-}
-
-export async function borrow(_amount: number): Promise<{ ok: true }> {
-  await wait();
-  return { ok: true };
-}
-
-export async function deposit(_amount: number): Promise<{ ok: true }> {
-  await wait();
-  return { ok: true };
-}
-
-export async function repay(): Promise<{ ok: true; scoreDelta: number }> {
-  await wait();
-  return { ok: true, scoreDelta: 15 };
-}

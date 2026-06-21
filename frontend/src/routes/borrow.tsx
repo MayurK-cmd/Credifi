@@ -6,8 +6,9 @@ import { RequireWallet } from "@/components/RequireWallet";
 import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { borrow, TIER_RATIOS, type Tier } from "@/lib/mockData";
+import { TIER_RATIOS, type Tier } from "@/lib/mockData";
 import { useWallet, walletStore } from "@/lib/wallet-store";
+import { borrow } from "@/lib/wallet-actions";
 
 export const Route = createFileRoute("/borrow")({
   head: () => ({ meta: [{ title: "Borrow — CrediFi" }] }),
@@ -33,11 +34,22 @@ function BorrowPage() {
   const onBorrow = async () => {
     const n = parseFloat(amount);
     if (!Number.isFinite(n) || n <= 0) return toast.error("Enter a valid amount");
+    const { address } = useWallet();
+    if (!address) return toast.error("Connect a wallet first");
     setLoading(true);
     try {
-      await borrow(n);
+      const result = await borrow({
+        address: address as `0x${string}`,
+        amountHsk: amount,
+        collateralHsk: collateral.toFixed(4),
+      });
       walletStore.addLoan(n, collateral);
-      toast.success(`Borrowed ${n} HSK`, { description: `Collateral locked: ${collateral.toFixed(2)} HSK` });
+      toast.success(`Borrowed ${result.amountHsk} HSK`, {
+        description: `Collateral locked: ${Number(result.collateralHsk).toFixed(2)} HSK`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Borrow failed.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

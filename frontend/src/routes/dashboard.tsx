@@ -5,7 +5,9 @@ import { SectionCard } from "@/components/SectionCard";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { ScoreHistoryChart } from "@/components/ScoreHistoryChart";
+import { useWalletQueries } from "@/hooks/use-wallet-queries";
 import { useWallet } from "@/lib/wallet-store";
+import { config } from "@/lib/config";
 import { truncate, TIER_RATIOS } from "@/lib/mockData";
 
 export const Route = createFileRoute("/dashboard")({
@@ -21,6 +23,9 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   const { address, profile, loan } = useWallet();
+  // Mount the queries hook so score/history/loan/pool data flow from the
+  // backend into the store. The hook is no-op-friendly when `address` is null.
+  useWalletQueries(address);
   const ratio = TIER_RATIOS[profile.tier];
 
   return (
@@ -30,7 +35,7 @@ function Dashboard() {
           <div className="text-xs text-muted-foreground uppercase tracking-wider">Connected</div>
           <div className="font-mono text-sm mt-1">{truncate(address!)}</div>
         </div>
-        <div className="text-xs text-muted-foreground">HSK Chain · Testnet</div>
+        <div className="text-xs text-muted-foreground">HSK Chain · Chain {config.chainId}</div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

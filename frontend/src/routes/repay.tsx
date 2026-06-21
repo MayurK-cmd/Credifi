@@ -5,8 +5,9 @@ import { Layout } from "@/components/Layout";
 import { RequireWallet } from "@/components/RequireWallet";
 import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
-import { repay } from "@/lib/mockData";
 import { useWallet, walletStore } from "@/lib/wallet-store";
+import { useWalletQueries } from "@/hooks/use-wallet-queries";
+import { repay } from "@/lib/wallet-actions";
 
 export const Route = createFileRoute("/repay")({
   head: () => ({ meta: [{ title: "Repay — CrediFi" }] }),
@@ -20,20 +21,29 @@ export const Route = createFileRoute("/repay")({
 });
 
 function RepayPage() {
-  const { loan, profile } = useWallet();
+  const { loan, profile, address } = useWallet();
+  // Mount the queries hook so a successful repay immediately re-fetches
+  // the (now repayment-history-bumped) score for this wallet.
+  useWalletQueries(address);
   const [loading, setLoading] = useState(false);
 
   const onRepay = async () => {
     if (!loan) return;
+    if (!address) return toast.error("Connect a wallet first");
     setLoading(true);
     try {
-      const { scoreDelta } = await repay();
+      await repay(address as `0x${string}`);
       const before = profile.score;
-      walletStore.bumpScore(scoreDelta);
+      // Optimistic local bump — the queries hook's next poll will overwrite
+      // with the real backend score (repayment count just incremented).
+      walletStore.bumpScore(15);
       walletStore.clearLoan();
       toast.success("Loan repaid", {
-        description: `Score increased: ${before} → ${before + scoreDelta}`,
+        description: `Score: ${before} → ${Math.min(1000, before + 15)}`,
       });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Repay failed.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
