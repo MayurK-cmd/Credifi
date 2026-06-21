@@ -10,15 +10,23 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "score:compute": "tsx src/cli/score.ts",
+    "indexer:catchup": "tsx src/cli/catchup.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"(lint deferred — add eslint in a follow-up slice)\""
   },
   "dependencies": {
+    "@fastify/cors": "^10.0.1",
     "@prisma/client": "^5.22.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "fastify": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "pino-pretty": "^11.3.0",
     "prisma": "^5.22.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4"
