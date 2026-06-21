@@ -1,0 +1,26 @@
+{
+  "name": "@credifi/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CrediFi backend service — score computation, EIP-712 signing, on-chain event listener, REST API. Pairs with @credifi/contracts on HSK Chain.",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"(lint deferred — add eslint in a follow-up slice)\""
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}

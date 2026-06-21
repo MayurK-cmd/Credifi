@@ -1,0 +1,66 @@
+// CrediFi backend — Prisma schema.
+//
+// Source of truth: the chain. This DB is a read cache / history log only.
+// See PLAN.md §5C and CLAUDE.md §8 for the rules this schema must follow.
+//
+// Money amounts (principal, collateralLocked) are stored as String (wei),
+// never Float — wei is a uint256 and JS Number cannot safely hold it past
+// 2^53. Read/write them via ethers.parseUnits / ethers.formatUnits.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Wallet {
+  address     String   @id @map("address") // lowercase, checksummed off
+  firstSeenAt DateTime @map("first_seen_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  scores      Score[]
+  loans       Loan[]
+
+  @@map("wallets")
+}
+
+model Score {
+  id         String   @id @default(uuid())
+  walletAddr String   @map("wallet_addr")
+  wallet     Wallet   @relation(fields: [walletAddr], references: [address])
+  score      Int // 0-1000
+  tier       String // "A" | "B" | "C" | "D"
+  factors    Json // breakdown: {walletAge, txActivity, repaymentHistory, assetDiversity}
+  computedAt DateTime @default(now()) @map("computed_at")
+  signature  String? // EIP-712 signature submitted on-chain, if applicable
+  txHash     String?  @map("tx_hash") // if backend relayer submitted on-chain
+
+  @@index([walletAddr, computedAt])
+  @@map("scores")
+}
+
+model Loan {
+  id               String    @id @default(uuid())
+  walletAddr       String    @map("wallet_addr")
+  wallet           Wallet    @relation(fields: [walletAddr], references: [address])
+  principal        String // store as string (wei) to avoid float precision issues
+  collateralLocked String    @map("collateral_locked") // wei
+  tierAtBorrow     String    @map("tier_at_borrow")
+  status           String // "active" | "repaid" | "liquidated"
+  borrowedAt       DateTime  @map("borrowed_at")
+  repaidAt         DateTime? @map("repaid_at")
+  borrowTxHash     String    @map("borrow_tx_hash")
+  repayTxHash      String?   @map("repay_tx_hash")
+
+  @@index([walletAddr, status])
+  @@map("loans")
+}
+
+model IndexerState {
+  id        String   @id @default("singleton")
+  lastBlock Int      @map("last_block") // last block the event listener processed
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("indexer_state")
+}
