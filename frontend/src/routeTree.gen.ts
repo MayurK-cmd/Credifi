@@ -9,12 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as RepayRouteImport } from './routes/repay'
 import { Route as LendRouteImport } from './routes/lend'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BorrowRouteImport } from './routes/borrow'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RepayRoute = RepayRouteImport.update({
   id: '/repay',
   path: '/repay',
@@ -23,6 +36,11 @@ const RepayRoute = RepayRouteImport.update({
 const LendRoute = LendRouteImport.update({
   id: '/lend',
   path: '/lend',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -45,42 +63,93 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/borrow': typeof BorrowRoute
   '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/lend': typeof LendRoute
   '/repay': typeof RepayRoute
+  '/status': typeof StatusRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/borrow': typeof BorrowRoute
   '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/lend': typeof LendRoute
   '/repay': typeof RepayRoute
+  '/status': typeof StatusRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/borrow': typeof BorrowRoute
   '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/lend': typeof LendRoute
   '/repay': typeof RepayRoute
+  '/status': typeof StatusRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/borrow' | '/dashboard' | '/lend' | '/repay'
+  fullPaths:
+    | '/'
+    | '/borrow'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/lend'
+    | '/repay'
+    | '/status'
+    | '/terms'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/borrow' | '/dashboard' | '/lend' | '/repay'
-  id: '__root__' | '/' | '/borrow' | '/dashboard' | '/lend' | '/repay'
+  to:
+    | '/'
+    | '/borrow'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/lend'
+    | '/repay'
+    | '/status'
+    | '/terms'
+  id:
+    | '__root__'
+    | '/'
+    | '/borrow'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/lend'
+    | '/repay'
+    | '/status'
+    | '/terms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BorrowRoute: typeof BorrowRoute
   DashboardRoute: typeof DashboardRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   LendRoute: typeof LendRoute
   RepayRoute: typeof RepayRoute
+  StatusRoute: typeof StatusRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/repay': {
       id: '/repay'
       path: '/repay'
@@ -93,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/lend'
       fullPath: '/lend'
       preLoaderRoute: typeof LendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -123,8 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BorrowRoute: BorrowRoute,
   DashboardRoute: DashboardRoute,
+  HowItWorksRoute: HowItWorksRoute,
   LendRoute: LendRoute,
   RepayRoute: RepayRoute,
+  StatusRoute: StatusRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
