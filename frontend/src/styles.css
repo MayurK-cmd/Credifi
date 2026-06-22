@@ -36,58 +36,114 @@
   --color-tier-d: var(--tier-d);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
 :root {
-  --radius: 0.75rem;
-  /* Deep navy / charcoal fintech palette */
-  --background: oklch(0.18 0.025 250);
-  --foreground: oklch(0.97 0.005 240);
-  --card: oklch(0.22 0.028 252);
-  --card-foreground: oklch(0.97 0.005 240);
-  --popover: oklch(0.22 0.028 252);
-  --popover-foreground: oklch(0.97 0.005 240);
-  --primary: oklch(0.78 0.16 215);            /* electric teal-blue */
-  --primary-foreground: oklch(0.15 0.03 250);
-  --secondary: oklch(0.28 0.03 252);
-  --secondary-foreground: oklch(0.97 0.005 240);
-  --muted: oklch(0.26 0.025 252);
-  --muted-foreground: oklch(0.68 0.015 250);
-  --accent: oklch(0.32 0.04 250);
-  --accent-foreground: oklch(0.97 0.005 240);
-  --destructive: oklch(0.62 0.22 25);
+  --radius: 0.625rem;
+  /* HashKey Chain inspired — near-black with subtle warmth, precision lime */
+  --background: oklch(0.16 0.006 80);             /* #0A0B0D-ish */
+  --foreground: oklch(0.97 0.005 100);
+  --card: oklch(0.195 0.006 80);                  /* #121316 */
+  --card-foreground: oklch(0.97 0.005 100);
+  --popover: oklch(0.205 0.006 80);
+  --popover-foreground: oklch(0.97 0.005 100);
+  --primary: oklch(0.93 0.21 115);                /* #D4F222 HashKey lime */
+  --primary-foreground: oklch(0.16 0.006 80);
+  --secondary: oklch(0.27 0.008 250);
+  --secondary-foreground: oklch(0.97 0.005 100);
+  --muted: oklch(0.235 0.006 80);
+  --muted-foreground: oklch(0.68 0.012 250);      /* #8B8F96 */
+  --accent: oklch(0.27 0.008 250);
+  --accent-foreground: oklch(0.97 0.005 100);
+  --destructive: oklch(0.66 0.17 35);             /* muted warm amber-red */
   --destructive-foreground: oklch(0.98 0 0);
-  --success: oklch(0.74 0.16 155);
+  --success: oklch(0.85 0.18 130);
   --warning: oklch(0.78 0.14 75);
-  --border: oklch(0.3 0.025 252);
-  --input: oklch(0.28 0.025 252);
-  --ring: oklch(0.78 0.16 215);
-  --tier-a: oklch(0.78 0.16 155);
-  --tier-b: oklch(0.78 0.16 215);
-  --tier-c: oklch(0.78 0.14 75);
-  --tier-d: oklch(0.65 0.2 25);
+  --border: oklch(0.29 0.006 250);                /* #2A2D33 */
+  --input: oklch(0.265 0.006 250);
+  --ring: oklch(0.93 0.21 115);
+  --tier-a: oklch(0.93 0.21 115);                 /* lime */
+  --tier-b: oklch(0.82 0.16 155);                 /* cooler green */
+  --tier-c: oklch(0.78 0.14 75);                  /* amber */
+  --tier-d: oklch(0.66 0.17 35);                  /* muted warm */
 }
 
 .dark {
-  --background: oklch(0.18 0.025 250);
-  --foreground: oklch(0.97 0.005 240);
+  --background: oklch(0.16 0.006 80);
+  --foreground: oklch(0.97 0.005 100);
 }
 
 @layer base {
   * { border-color: var(--color-border); }
-  html, body { background-color: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
   body {
     background-image:
-      radial-gradient(800px 500px at 90% -10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 60%),
-      radial-gradient(700px 400px at -10% 10%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 60%);
+      radial-gradient(900px 600px at 85% -15%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 60%),
+      radial-gradient(700px 500px at -10% 15%, color-mix(in oklab, var(--primary) 4%, transparent), transparent 60%);
     background-attachment: fixed;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  /* tabular nums for any monospace text */
+  .font-mono, code, kbd, samp { font-variant-numeric: tabular-nums; }
 }
 
 @utility surface-card {
-  background: color-mix(in oklab, var(--card) 92%, transparent);
+  background: color-mix(in oklab, var(--card) 88%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   backdrop-filter: blur(8px);
+}
+
+@utility surface-card-hover {
+  transition: border-color 200ms ease, background-color 200ms ease, transform 200ms ease;
+}
+@utility surface-card-hover {
+  &:hover {
+    border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+    background: color-mix(in oklab, var(--card) 96%, transparent);
+  }
+}
+
+@utility dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+@utility lime-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--primary) 30%, transparent),
+    0 8px 24px -8px color-mix(in oklab, var(--primary) 45%, transparent);
+}
+
+@utility btn-primary-cta {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+  transition: transform 150ms ease, box-shadow 200ms ease, background-color 150ms ease;
+}
+@utility btn-primary-cta {
+  &:hover {
+    background: color-mix(in oklab, var(--primary) 92%, white);
+    box-shadow: 0 8px 30px -8px color-mix(in oklab, var(--primary) 60%, transparent);
+    transform: translateY(-1px);
+  }
+  &:active { transform: translateY(0); }
+}
+
+@keyframes credifi-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@utility fade-up {
+  animation: credifi-fade-up 500ms ease-out both;
 }

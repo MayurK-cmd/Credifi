@@ -5,14 +5,14 @@ export function ScoreBreakdown({ factors }: { factors: ScoreFactor[] }) {
     <div className="space-y-4">
       {factors.map((f) => (
         <div key={f.label}>
-          <div className="flex justify-between text-sm mb-1.5">
-            <span className="text-muted-foreground">{f.label}</span>
-            <span className="tabular-nums font-medium">{f.value}%</span>
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-muted-foreground uppercase tracking-wider">{f.label}</span>
+            <span className="font-mono font-medium text-foreground">{f.value}%</span>
           </div>
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${f.value}%`, boxShadow: "0 0 8px var(--primary)" }}
+              className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
+              style={{ width: `${f.value}%` }}
             />
           </div>
         </div>
