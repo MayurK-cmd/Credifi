@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "cd frontend && bun install",
     "dev": "cd frontend && bun run dev",
     "build": "cd frontend && bun run build",
     "build:dev": "cd frontend && bun run build:dev",
