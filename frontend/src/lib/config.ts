@@ -2,8 +2,9 @@
  * Centralized env reader for the frontend.
  *
  * Vite injects `import.meta.env.VITE_*` at build time. We validate at module
- * load so a misconfigured deploy fails fast with a readable message instead
- * of "undefined.split is not a function" deep in a render.
+ * load with mock/demo defaults so the hackathon UI can run in preview without
+ * requiring local env setup. Real API / contract wiring can still override
+ * these with VITE_* values when integration starts.
  *
  * Source-of-truth values live in `frontend/.env.example` (the template the
  * user copies to `.env.local`). Defaults are sensible for local dev against
@@ -16,14 +17,16 @@ function readEnv(key: string): string | undefined {
   return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
-function required(key: string): string {
-  const v = readEnv(key);
-  if (!v) {
-    throw new Error(
-      `Missing required env var ${key}. Copy frontend/.env.example to frontend/.env.local and fill it in.`,
-    );
-  }
-  return v;
+const DEMO_DEFAULTS = {
+  VITE_API_URL: "http://localhost:3001",
+  VITE_ORACLE_ADDRESS: "0x6345Ec7861cDCf8798F5D40348d91Cdbe077544B",
+  VITE_POOL_ADDRESS: "0x0bFeE39682e4a5CA057A33838d06Ca7b43bF42Cc",
+  VITE_HSK_RPC_URL: "https://rpc.hsk.chain",
+  VITE_CHAIN_ID: "133",
+} as const;
+
+function readConfig(key: keyof typeof DEMO_DEFAULTS): string {
+  return readEnv(key) ?? DEMO_DEFAULTS[key];
 }
 
 function asAddress(value: string, key: string): `0x${string}` {
@@ -33,17 +36,17 @@ function asAddress(value: string, key: string): `0x${string}` {
   return value as `0x${string}`;
 }
 
-const apiUrlRaw = required("VITE_API_URL");
+const apiUrlRaw = readConfig("VITE_API_URL");
 const apiUrl = apiUrlRaw.replace(/\/+$/, ""); // strip trailing slash
-const chainId = Number(readEnv("VITE_CHAIN_ID") ?? "133");
+const chainId = Number(readConfig("VITE_CHAIN_ID"));
 if (!Number.isInteger(chainId) || chainId <= 0) {
   throw new Error(`Env var VITE_CHAIN_ID must be a positive integer. Got: ${chainId}`);
 }
 
 export const config = {
   apiUrl,
-  oracleAddress: asAddress(required("VITE_ORACLE_ADDRESS"), "VITE_ORACLE_ADDRESS"),
-  poolAddress: asAddress(required("VITE_POOL_ADDRESS"), "VITE_POOL_ADDRESS"),
-  rpcUrl: readEnv("VITE_HSK_RPC_URL") ?? "",
+  oracleAddress: asAddress(readConfig("VITE_ORACLE_ADDRESS"), "VITE_ORACLE_ADDRESS"),
+  poolAddress: asAddress(readConfig("VITE_POOL_ADDRESS"), "VITE_POOL_ADDRESS"),
+  rpcUrl: readConfig("VITE_HSK_RPC_URL"),
   chainId,
 } as const;
