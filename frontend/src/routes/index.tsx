@@ -78,7 +78,15 @@ function Hero() {
 function HowItWorks() {
   return (
     <section id="how-it-works" className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-      <SectionHeader eyebrow="How it works" title="Three steps to better terms." />
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <SectionHeader eyebrow="How it works" title="Three steps to better terms." />
+        <Link
+          to="/how-it-works"
+          className="text-sm text-muted-foreground hover:text-primary transition inline-flex items-center gap-1"
+        >
+          Learn more <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
       <div className="mt-10">
         <HowItWorksSteps />
       </div>
