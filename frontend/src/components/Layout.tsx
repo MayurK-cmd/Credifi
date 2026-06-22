@@ -7,6 +7,8 @@ const NAV = [
   { to: "/borrow", label: "Borrow" },
   { to: "/lend", label: "Lend" },
   { to: "/repay", label: "Repay" },
+  { to: "/how-it-works", label: "How It Works" },
+  { to: "/status", label: "Status" },
 ] as const;
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -73,7 +75,10 @@ export function Layout({ children }: { children: ReactNode }) {
               <span className="text-foreground">HashKey Chain</span>
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link to="/how-it-works" className="hover:text-foreground transition-colors">How It Works</Link>
+            <Link to="/status" className="hover:text-foreground transition-colors">Status</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <a href="#" className="hover:text-foreground transition-colors">GitHub</a>
             <a href="#" className="hover:text-foreground transition-colors">Docs</a>
             <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-border">
