@@ -16,10 +16,18 @@ export function SectionCard({
   return (
     <div className={`surface-card p-5 sm:p-6 ${className}`}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            {title && <h3 className="font-display text-base font-semibold">{title}</h3>}
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+            {title && (
+              <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                {title}
+              </h3>
+            )}
+            {subtitle && (
+              <p className="font-display text-base font-medium text-foreground mt-1.5">
+                {subtitle}
+              </p>
+            )}
           </div>
           {action}
         </div>
