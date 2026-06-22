@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import { RequireWallet } from "@/components/RequireWallet";
 import { SectionCard } from "@/components/SectionCard";
-import { TierComparisonRow as _TierComparisonRow } from "@/components/TierComparisonRow";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TIER_RATIOS } from "@/lib/mockData";
