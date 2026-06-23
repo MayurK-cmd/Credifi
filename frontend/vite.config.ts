@@ -12,4 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // The Lovable sandbox forces `cloudflare-module` and skips Nitro outside
+  // it entirely — neither works on Vercel. Honor NITRO_PRESET first (used by
+  // the vercel build script), then fall back to vercel as the default for any
+  // non-Lovable build (so `vercel build` / `vercel deploy` Just Work).
+  nitro:
+    process.env.NITRO_PRESET === "cloudflare-module"
+      ? { preset: "cloudflare-module" }
+      : { preset: process.env.NITRO_PRESET ?? "vercel" },
 });
