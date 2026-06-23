@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, TrendingUp } from "lucide-react";
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/repay")({
 function RepayPage() {
   const { loan, profile, address } = useWallet();
   useWalletQueries(address);
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [celebration, setCelebration] = useState<{ before: number; after: number } | null>(null);
 
@@ -34,11 +36,22 @@ function RepayPage() {
     if (!address) return toast.error("Connect a wallet first");
     setLoading(true);
     try {
+      // repay() now waits for the on-chain receipt before resolving. If the
+      // tx reverts, an error is thrown and we land in the catch below.
       await repay(address as `0x${string}`);
       const before = profile.score;
       const after = Math.min(1000, before + 15);
+      // Optimistic UI updates so the user sees instant feedback.
       walletStore.bumpScore(15);
       walletStore.clearLoan();
+      // Tell react-query the loan + score are stale. The queries hook will
+      // refetch, the backend indexer will have seen the Repaid event by then
+      // (it fires in the same tx as pool.repay), and the store will reflect
+      // on-chain truth within a second or two.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["loan", address] }),
+        queryClient.invalidateQueries({ queryKey: ["score", address] }),
+      ]);
       setCelebration({ before, after });
       if (tierFromScore(after) !== tierFromScore(before)) {
         toast.success("Tier upgraded!", { description: `${tierFromScore(before)} → ${tierFromScore(after)}` });
@@ -46,8 +59,21 @@ function RepayPage() {
         toast.success("Loan repaid", { description: `Score: ${before} → ${after}` });
       }
     } catch (err) {
+      // "No active loan" is the recovery path: a previous repay on this
+      // address already closed the position, but the indexer hadn't
+      // caught up when this page mounted so we still rendered the loan
+      // card. Treat it as a no-op success — clear the local loan state
+      // and re-fetch so the UI shows the truth.
       const msg = err instanceof Error ? err.message : "Repay failed.";
-      toast.error(msg);
+      if (msg.includes("No active loan")) {
+        walletStore.clearLoan();
+        await queryClient.invalidateQueries({ queryKey: ["loan", address] });
+        toast.success("Loan already repaid", {
+          description: "Updated local state to match on-chain.",
+        });
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }

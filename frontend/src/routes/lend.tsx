@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
@@ -8,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWallet, walletStore } from "@/lib/wallet-store";
 import { useWalletQueries } from "@/hooks/use-wallet-queries";
-import { deposit } from "@/lib/wallet-actions";
+import { deposit, withdraw } from "@/lib/wallet-actions";
+import { getLenderPosition } from "@/lib/pool-reads";
+import { formatHsk } from "@/lib/chain";
 
 export const Route = createFileRoute("/lend")({
   head: () => ({ meta: [{ title: "Lend — CrediFi" }] }),
@@ -26,13 +29,27 @@ function LendPage() {
   useWalletQueries(address);
   const [amount, setAmount] = useState("500");
   const [loading, setLoading] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
   const n = parseFloat(amount);
   const valid = Number.isFinite(n) && n > 0;
 
-  const projected = useMemo(() => (valid ? n * (pool.supplyApy / 100) : 0), [n, pool.supplyApy, valid]);
+  const projected = useMemo(
+    () => (valid ? (n * pool.supplyApy) / 100 : 0),
+    [n, pool.supplyApy, valid],
+  );
 
-  // Mock position
-  const position = { deposited: 100, current: 106.2 };
+  // Live lender position from the on-chain pool contract. Re-fetches every
+  // 30s and after any deposit/withdraw so the "Your Position" card stays
+  // accurate without manual refresh.
+  const lenderQ = useQuery({
+    queryKey: ["lenderPosition", address],
+    queryFn: () => getLenderPosition(address as `0x${string}`),
+    enabled: !!address,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const queryClient = useQueryClient();
 
   const onDeposit = async () => {
     if (!valid) return toast.error("Enter a valid amount");
@@ -41,7 +58,10 @@ function LendPage() {
     try {
       await deposit({ address: address as `0x${string}`, amountHsk: amount });
       walletStore.addLiquidity(n);
-      toast.success(`Deposited ${n} HSK`, { description: `Earning ${pool.supplyApy.toFixed(2)}% APY` });
+      await queryClient.invalidateQueries({ queryKey: ["lenderPosition", address] });
+      toast.success(`Deposited ${n} HSK`, {
+        description: `Earning ${pool.supplyApy.toFixed(2)}% APY`,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Deposit failed.";
       toast.error(msg);
@@ -49,6 +69,41 @@ function LendPage() {
       setLoading(false);
     }
   };
+
+  const onWithdraw = async () => {
+    if (!address) return toast.error("Connect a wallet first");
+    const data = lenderQ.data;
+    if (!data || data.sharesWei === 0n) {
+      return toast.error("No position to withdraw");
+    }
+    setWithdrawLoading(true);
+    try {
+      await withdraw({ address: address as `0x${string}`, shares: data.sharesWei });
+      await queryClient.invalidateQueries({ queryKey: ["lenderPosition", address] });
+      await queryClient.invalidateQueries({ queryKey: ["poolStats"] });
+      toast.success(
+        `Withdrew ${formatHsk(data.currentValueWei, 4)} HSK`,
+        { description: "Position cleared from pool" },
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Withdraw failed.";
+      toast.error(msg);
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
+
+  // Derived position stats for the card.
+  const sharesHsk = lenderQ.data ? formatHsk(lenderQ.data.sharesWei, 4) : "—";
+  const currentValueHsk = lenderQ.data ? formatHsk(lenderQ.data.currentValueWei, 4) : "—";
+  const poolSharePct = useMemo(() => {
+    if (!lenderQ.data) return 0;
+    if (lenderQ.data.totalSharesWei === 0n) return 0;
+    return Number(
+      (lenderQ.data.sharesWei * 10_000n) / lenderQ.data.totalSharesWei,
+    ) / 100;
+  }, [lenderQ.data]);
+  const hasPosition = !!lenderQ.data && lenderQ.data.sharesWei > 0n;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 fade-up">
@@ -124,22 +179,40 @@ function LendPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Your Position" subtitle="Supplied + accrued yield">
-        <div className="grid sm:grid-cols-4 gap-3 items-stretch">
-          <PosStat label="Deposited" value={`${position.deposited.toFixed(2)} HSK`} />
-          <PosStat label="Current value" value={`${position.current.toFixed(2)} HSK`} accent />
-          <PosStat
-            label="Yield earned"
-            value={`+${(position.current - position.deposited).toFixed(2)} HSK`}
-          />
-          <button className="rounded-lg border border-border bg-background/40 hover:border-primary/50 hover:bg-card transition px-4 py-3 text-sm font-medium">
-            Withdraw {position.current.toFixed(2)} HSK
-          </button>
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-3">
-          Withdrawing returns principal + accrued yield ({position.deposited.toFixed(2)} +{" "}
-          {(position.current - position.deposited).toFixed(2)} = {position.current.toFixed(2)} HSK).
-        </p>
+      <SectionCard title="Your Position" subtitle="Live from the CrediFiPool contract">
+        {lenderQ.isLoading ? (
+          <div className="text-xs text-muted-foreground font-mono">
+            Loading position…
+          </div>
+        ) : lenderQ.isError ? (
+          <div className="text-xs text-destructive font-mono">
+            Could not read position: {lenderQ.error instanceof Error
+              ? lenderQ.error.message
+              : String(lenderQ.error)}
+          </div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-4 gap-3 items-stretch">
+              <PosStat label="Shares" value={sharesHsk} />
+              <PosStat label="Current value" value={`${currentValueHsk} HSK`} accent />
+              <PosStat label="Pool share" value={`${poolSharePct.toFixed(2)}%`} />
+              <button
+                onClick={onWithdraw}
+                disabled={withdrawLoading || !hasPosition}
+                className="rounded-lg border border-border bg-background/40 hover:border-primary/50 hover:bg-card transition px-4 py-3 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {withdrawLoading
+                  ? "Submitting…"
+                  : `Withdraw ${currentValueHsk} HSK`}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-3">
+              Your current value is your share of the pool&apos;s total assets.
+              As borrowers repay interest, your share value grows pro-rata;
+              new lenders dilute your share count but not your HSK-equivalent value.
+            </p>
+          </>
+        )}
       </SectionCard>
     </div>
   );

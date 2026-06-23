@@ -13,11 +13,14 @@ import { config } from "../config.js";
 import { fetchLiveChainId, getOracle, getPool } from "../chain/provider.js";
 import { prisma } from "../db.js";
 import { indexOnce, runForever } from "../indexer/indexer.js";
+import { sampleTvlOnce } from "../indexer/tvl-snapshot.js";
 import { scoreRoutes } from "./routes/score.js";
 import { loanRoutes } from "./routes/loan.js";
 import { poolRoutes } from "./routes/pool.js";
+import { statusRoutes } from "./routes/status.js";
 
 const stopSignal = { stopped: false };
+const tvlTimer: { handle: NodeJS.Timeout | null } = { handle: null };
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -34,6 +37,23 @@ export async function buildServer(): Promise<FastifyInstance> {
   // CORS — wide-open in dev, restrict in prod via env.
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN ?? true,
+  });
+
+  // Defensive BigInt serializer. The contract layer and ethers v6 both
+  // return bigints for uint256 / chainId values; if any of those leak
+  // into a response payload, JSON.stringify throws "Do not know how to
+  // serialize a BigInt" and the route 500s. This hook rewrites any
+  // bigint in an object payload to a decimal string before Fastify's
+  // built-in JSON serialization runs. Buffers/streams pass through.
+  app.addHook("onSend", async (_req, reply, payload) => {
+    if (payload === null || typeof payload !== "object") return payload;
+    if (Buffer.isBuffer(payload) || typeof (payload as { pipe?: unknown }).pipe === "function") {
+      return payload;
+    }
+    const replacer = (_key: string, value: unknown): unknown =>
+      typeof value === "bigint" ? value.toString() : value;
+    reply.header("content-type", "application/json; charset=utf-8");
+    return JSON.stringify(payload, replacer);
   });
 
   app.get("/health", async () => {
@@ -63,6 +83,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(scoreRoutes);
   await app.register(loanRoutes);
   await app.register(poolRoutes);
+  await app.register(statusRoutes);
 
   // Force-construct the Contract objects so the first request doesn't pay
   // the ABIs-parse cost. Also fails fast at boot if the addresses are bad.
@@ -86,10 +107,21 @@ export async function bootstrap(): Promise<void> {
     }
   })();
 
+  // Sample TVL on boot, then every `config.indexer.tvlSampleIntervalMs`.
+  // First sample is async so we don't block boot.
+  void sampleTvlOnce();
+  tvlTimer.handle = setInterval(() => {
+    void sampleTvlOnce();
+  }, config.indexer.tvlSampleIntervalMs);
+
   // Hook graceful shutdown.
   const shutdown = async (signal: string) => {
     console.log(`\n[server] received ${signal}, shutting down…`);
     stopSignal.stopped = true;
+    if (tvlTimer.handle) {
+      clearInterval(tvlTimer.handle);
+      tvlTimer.handle = null;
+    }
     try {
       await app.close();
     } catch (err) {

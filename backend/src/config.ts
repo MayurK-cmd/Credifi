@@ -185,6 +185,8 @@ export const config = {
     blockBatchSize: 500,
     /** How long to wait between polls when the chain head hasn't advanced. */
     pollIntervalMs: 5_000,
+    /** How often to sample `pool.poolTotalAssets()` for the TVL history chart. */
+    tvlSampleIntervalMs: intEnv("TVL_SAMPLE_INTERVAL_MS", 5 * 60_000),
   },
 } as const;
 

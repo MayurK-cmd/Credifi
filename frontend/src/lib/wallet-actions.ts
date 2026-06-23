@@ -16,7 +16,7 @@
  * Money: all on-chain values are `bigint` (wei). User input is HSK decimal;
  * `parseHsk()` converts it before each tx.
  */
-import { type Address, createPublicClient, http } from "viem";
+import { type Address, createPublicClient, decodeErrorResult, http } from "viem";
 import { ORACLE_ABI, POOL_ABI } from "./abi";
 import { getCurrentAccount, getEthereum, getWalletClient, hskTestnet, parseHsk } from "./chain";
 import { config } from "./config";
@@ -204,6 +204,13 @@ export async function borrow(args: {
  * Repay the caller's outstanding loan in full (principal + accrued interest).
  * Reads `pool.accruedDebt(msg.sender)` first, then sends `pool.repay()`
  * with exactly that much value. The pool refunds any excess.
+ *
+ * Waits for the tx to be mined (1 confirmation) and throws if it reverts —
+ * the route relies on the absence of an error to mean "loan is closed."
+ *
+ * On revert, we decode the contract's custom error from the receipt's input
+ * field so the toast surfaces the real reason (e.g. "No active loan to
+ * repay", "Underpayment: sent X owed Y") rather than a generic "reverted".
  */
 export async function repay(address: `0x${string}`): Promise<{ txHash: `0x${string}` }> {
   const wallet = getWalletClient();
@@ -224,17 +231,154 @@ export async function repay(address: `0x${string}`): Promise<{ txHash: `0x${stri
     throw new Error("No active loan to repay.");
   }
 
+  // The contract computes `owed` at the moment the tx is mined, using the
+  // current block number. Between our `accruedDebt` read and tx mining,
+  // several blocks may pass (user approving in MetaMask, RPC latency, etc.)
+  // and each block accrues more interest:
+  //
+  //   interest_per_block = principal * DEFAULT_BORROW_RATE_BPS / BPS / BLOCKS_PER_YEAR
+  //
+  // For a 100 HSK principal at 8% APR / 5s blocks, that's ~1.27e12 wei/block.
+  // A user who pauses to read the toast / wallet popup for ~30 seconds
+  // can accrue 1e13 wei of new interest. We pad by 0.1% of the quoted
+  // debt (≥ 1e15 wei for any realistic position) so the read/exec race
+  // can never push us under `owed`. Excess is refunded by the contract
+  // (`refund = msg.value - owed`).
+  const value = debt + debt / 1000n + 1n;
+
   const txHash = await wallet.writeContract({
     address: config.poolAddress,
     abi: POOL_ABI,
     functionName: "repay",
     args: [],
-    value: debt,
+    value,
     account: address,
     chain: hskTestnet,
   });
 
+  // Wait for the receipt. Without this, the route's optimistic UI updates
+  // ("loan repaid", score bump) fire before the tx has actually landed —
+  // and if the tx then reverts (out of gas, insufficient value, etc.) the
+  // user is told success while the loan stays open on-chain.
+  const publicClientForReceipt = createPublicClient({
+    chain: hskTestnet,
+    transport: http(config.rpcUrl),
+  });
+  const receipt = await publicClientForReceipt.waitForTransactionReceipt({ hash: txHash });
+  if (receipt.status === "reverted") {
+    throw new Error(await decodeRevertViaEthCall(publicClientForReceipt, address, value));
+  }
+
   return { txHash };
+}
+
+/**
+ * Use a direct `eth_call` to re-execute `pool.repay()` at the current head
+ * and capture the raw revert payload. This is more reliable than
+ * `simulateContract` because:
+ *   - We bypass viem's error-wrapping chain (which can nest
+ *     ContractFunctionExecutionError -> ContractFunctionRevertedError and
+ *     make the .data field hard to find).
+ *   - The RPC's raw response always carries the revert data in
+ *     `error.data` per the standard JSON-RPC error format.
+ */
+async function decodeRevertViaEthCall(
+  publicClient: ReturnType<typeof createPublicClient>,
+  from: `0x${string}`,
+  value: bigint,
+): Promise<string> {
+  try {
+    await publicClient.call({
+      to: config.poolAddress,
+      data: REPAY_SELECTOR,
+      value,
+      account: from,
+    } as Parameters<typeof publicClient.call>[0]);
+    // No revert on the simulation — odd, since the real tx reverted. Could
+    // mean the state changed between the tx mining and our call (e.g. the
+    // indexer updated something, or a second repay landed first). Surface
+    // a useful message instead of pretending it worked.
+    return `Repay transaction reverted on-chain but a fresh simulation passed (state may have changed).`;
+  } catch (err) {
+    const revertData = extractRevertData(err);
+    if (revertData) {
+      return decodePoolErrorData(revertData);
+    }
+    // Fallback: regex-match the message in case the RPC surfaced the
+    // error as a plain string instead of structured data.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/NoActiveLoan/i.test(msg)) return "No active loan to repay (position already closed).";
+    if (/Underpayment/i.test(msg)) return `Underpayment: ${msg}`;
+    if (/Overpayment/i.test(msg)) return `Overpayment: ${msg}`;
+    if (/InsufficientLiquidity/i.test(msg)) return `Insufficient liquidity: ${msg}`;
+    if (/CollateralTooLow/i.test(msg)) return `Collateral too low: ${msg}`;
+    return `Repay reverted: ${msg}`;
+  }
+}
+
+/**
+ * Pre-computed selector for `pool.repay()`. The signature is `repay()`
+ * (no args, payable), keccak256("repay()").slice(0, 4) = 0x402d8883.
+ * Hard-coded so the eth_call doesn't need the ABI in scope (viem's call()
+ * takes raw calldata).
+ */
+const REPAY_SELECTOR = "0x402d8883" as const;
+
+/**
+ * Walk an arbitrary error's nested `.cause` chain looking for a JSON-RPC
+ * revert payload (a 0x-prefixed string that begins with a 4-byte selector
+ * and carries abi-encoded args after).
+ */
+function extractRevertData(err: unknown): `0x${string}` | null {
+  let current: unknown = err;
+  const seen = new Set<unknown>();
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (typeof current === "object" && current !== null) {
+      const obj = current as Record<string, unknown>;
+      // Direct `data` field (standard JSON-RPC error).
+      if (typeof obj.data === "string" && obj.data.startsWith("0x") && obj.data.length >= 10) {
+        return obj.data as `0x${string}`;
+      }
+      // Some viem errors nest under .cause.
+      if (obj.cause) {
+        current = obj.cause;
+        continue;
+      }
+    }
+    break;
+  }
+  return null;
+}
+
+/**
+ * Decode a raw `0x…` revert payload against the pool's custom errors.
+ */
+function decodePoolErrorData(data: `0x${string}`): string {
+  try {
+    const decoded = decodeErrorResult({ abi: POOL_ABI, data });
+    const args = (decoded.args ?? []) as readonly (string | bigint | number | boolean | undefined)[];
+    switch (decoded.errorName) {
+      case "Pool__NoActiveLoan":
+        return "No active loan to repay (position already closed).";
+      case "Pool__Underpayment":
+        return `Underpayment: sent ${args[0]} wei, owed ${args[1]} wei.`;
+      case "Pool__Overpayment":
+        return `Overpayment: sent ${args[0]} wei, owed ${args[1]} wei.`;
+      case "Pool__InsufficientLiquidity":
+        return `Insufficient liquidity: requested ${args[0]}, available ${args[1]}.`;
+      case "Pool__ZeroAmount":
+        return "Zero amount.";
+      case "Pool__InvalidScore":
+        return "Invalid score signature.";
+      case "Pool__InvalidTier":
+        return `Invalid tier: ${args[0]}.`;
+      default:
+        return `Repay reverted with ${decoded.errorName}${args.length ? `(${args.join(", ")})` : ""}.`;
+    }
+  } catch {
+    return `Repay reverted (could not decode error data: ${data.slice(0, 10)}…).`;
+  }
 }
 
 // ============================================================================

@@ -28,6 +28,7 @@
 import { config, tierLetterFromNumber } from "../config.js";
 import { getOracle, getPool, getProvider } from "../chain/provider.js";
 import { prisma } from "../db.js";
+import { recordTreasuryFeesInRange } from "./treasury-fee.js";
 
 const INDEXER_STATE_ID = "singleton";
 
@@ -66,6 +67,7 @@ export async function indexOnce(): Promise<number> {
     processRepaidEvents(fromBlock, toBlock),
     processLiquidatedEvents(fromBlock, toBlock),
     processScoreSubmittedEvents(fromBlock, toBlock),
+    recordTreasuryFeesInRange(fromBlock, toBlock),
   ]);
 
   await prisma.indexerState.update({

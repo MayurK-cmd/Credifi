@@ -43,7 +43,7 @@ export function WalletButton({ size = "sm" }: { size?: "sm" | "lg" }) {
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="group flex items-center gap-2 rounded-md border border-border bg-card/60 pl-2 pr-2.5 py-1.5 text-sm hover:border-primary/50 transition"
+          className="cursor-pointer group flex items-center gap-2 rounded-md border border-border bg-card/60 pl-2 pr-2.5 py-1.5 text-sm hover:border-primary/50 transition"
         >
           <span className="flex items-center gap-1.5 rounded-sm bg-background/60 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
             <span className="size-1.5 rounded-full bg-primary" style={{ boxShadow: "0 0 8px var(--primary)" }} />
@@ -62,7 +62,7 @@ export function WalletButton({ size = "sm" }: { size?: "sm" | "lg" }) {
               </div>
               <button
                 onClick={onDisconnect}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
+                className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
               >
                 <LogOut className="size-3.5" /> Disconnect
               </button>
@@ -77,7 +77,7 @@ export function WalletButton({ size = "sm" }: { size?: "sm" | "lg" }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className={`btn-primary-cta inline-flex items-center justify-center gap-1.5 rounded-md ${
+        className={`btn-primary-cta cursor-pointer inline-flex items-center justify-center gap-1.5 rounded-md ${
           size === "lg" ? "h-11 px-5 text-sm" : "h-9 px-4 text-sm"
         }`}
       >
@@ -125,7 +125,7 @@ function WalletModal({
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition"
+            className="cursor-pointer text-muted-foreground hover:text-foreground transition"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -140,7 +140,7 @@ function WalletModal({
                 key={w.key}
                 onClick={() => onPick(w.key)}
                 disabled={loading !== null}
-                className="w-full flex items-center gap-3 rounded-lg border border-border bg-card/60 p-3 text-left hover:border-primary/50 hover:bg-card transition disabled:opacity-50"
+                className="cursor-pointer w-full flex items-center gap-3 rounded-lg border border-border bg-card/60 p-3 text-left hover:border-primary/50 hover:bg-card transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="size-10 rounded-md bg-background grid place-items-center text-lg border border-border">
                   {w.glyph}

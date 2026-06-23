@@ -64,3 +64,23 @@ model IndexerState {
 
   @@map("indexer_state")
 }
+
+model TvlSnapshot {
+  id        String   @id @default(uuid())
+  tvlWei    String   @map("tvl_wei") // pool.poolTotalAssets() at sample time, wei-string
+  sampledAt DateTime @default(now()) @map("sampled_at")
+
+  @@index([sampledAt])
+  @@map("tvl_snapshots")
+}
+
+model TreasuryFee {
+  id          String   @id @default(uuid())
+  borrower    String // lowercase wallet address
+  amountWei   String   @map("amount_wei") // wei-string
+  txHash      String   @unique @map("tx_hash")
+  collectedAt DateTime @map("collected_at")
+
+  @@index([collectedAt])
+  @@map("treasury_fees")
+}

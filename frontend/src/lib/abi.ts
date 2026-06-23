@@ -283,4 +283,19 @@ export const POOL_ABI: Abi = [
     ],
     anonymous: false,
   },
+  // ---- custom errors (mirrors CrediFiPool.sol §"Custom errors") ----
+  // Used by the repay flow to decode revert reasons on-chain rather than
+  // showing the user an opaque "reverted" toast.
+  { type: "error", name: "Pool__CollateralTooLow", inputs: [{ name: "required", type: "uint256" }, { name: "provided", type: "uint256" }] },
+  { type: "error", name: "Pool__NoActiveLoan", inputs: [] },
+  { type: "error", name: "Pool__Overpayment", inputs: [{ name: "sent", type: "uint256" }, { name: "owed", type: "uint256" }] },
+  { type: "error", name: "Pool__Underpayment", inputs: [{ name: "sent", type: "uint256" }, { name: "owed", type: "uint256" }] },
+  { type: "error", name: "Pool__InsufficientLiquidity", inputs: [{ name: "requested", type: "uint256" }, { name: "available", type: "uint256" }] },
+  { type: "error", name: "Pool__NotLiquidatable", inputs: [{ name: "healthFactorBps", type: "uint256" }] },
+  { type: "error", name: "Pool__InvalidScore", inputs: [] },
+  { type: "error", name: "Pool__LoanAlreadyActive", inputs: [] },
+  { type: "error", name: "Pool__ZeroAmount", inputs: [] },
+  { type: "error", name: "Pool__ZeroAddress", inputs: [] },
+  { type: "error", name: "Pool__InvalidRate", inputs: [{ name: "supplied", type: "uint256" }, { name: "min", type: "uint256" }, { name: "max", type: "uint256" }] },
+  { type: "error", name: "Pool__InvalidTier", inputs: [{ name: "tier", type: "uint8" }] },
 ] as const;

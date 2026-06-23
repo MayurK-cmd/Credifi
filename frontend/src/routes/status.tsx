@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import {
   Area,
@@ -10,17 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { Layout } from "@/components/Layout";
-import {
-  incidents,
-  lastUpdatedMinutesAgo,
-  networkInfo,
-  overallStatus,
-  protocolStats,
-  systemComponents,
-  tierDistribution,
-  tvlHistory,
-  type ComponentStatus,
-} from "@/lib/mockStatusData";
+import { getStatus } from "@/lib/api";
+import type { ComponentStatus, StatusPayload } from "@/lib/status-types";
 
 export const Route = createFileRoute("/status")({
   head: () => ({
@@ -70,7 +62,87 @@ const OVERALL_COPY: Record<ComponentStatus, string> = {
 };
 
 function StatusPage() {
-  const meta = STATUS_META[overallStatus];
+  const q = useQuery({
+    queryKey: ["status"],
+    queryFn: () => getStatus(),
+    refetchInterval: 30_000,
+  });
+
+  // Derived "X minutes ago" string from the query's own update time so the
+  // label refreshes with each refetch — backend hardcodes 0 today.
+  const updatedAgo = useMemo(() => {
+    if (!q.dataUpdatedAt) return null;
+    const minutes = Math.max(0, Math.floor((Date.now() - q.dataUpdatedAt) / 60_000));
+    return minutes;
+  }, [q.dataUpdatedAt]);
+
+  if (q.isLoading) {
+    return (
+      <Layout>
+        <article className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-20">
+          <div className="font-mono text-xs text-muted-foreground">
+            Loading protocol status…
+          </div>
+        </article>
+      </Layout>
+    );
+  }
+
+  if (q.isError) {
+    return (
+      <Layout>
+        <article className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-20">
+          <div className="surface-card p-5 border border-destructive/40">
+            <div className="font-display text-lg font-semibold text-destructive">
+              Could not reach the status endpoint
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {q.error instanceof Error ? q.error.message : String(q.error)}
+            </div>
+            <button
+              onClick={() => void q.refetch()}
+              className="mt-3 inline-flex items-center rounded-md border border-border bg-card/40 px-2.5 h-8 text-xs hover:border-primary/40 hover:text-primary transition"
+            >
+              Retry
+            </button>
+          </div>
+        </article>
+      </Layout>
+    );
+  }
+
+  if (!q.data) {
+    // Defensive: queryFn resolves to a defined payload. If not, treat as error.
+    return (
+      <Layout>
+        <article className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-20">
+          <div className="surface-card p-5 border border-destructive/40">
+            <div className="font-display text-lg font-semibold text-destructive">
+              Status payload missing
+            </div>
+            <button
+              onClick={() => void q.refetch()}
+              className="mt-3 inline-flex items-center rounded-md border border-border bg-card/40 px-2.5 h-8 text-xs hover:border-primary/40 hover:text-primary transition"
+            >
+              Retry
+            </button>
+          </div>
+        </article>
+      </Layout>
+    );
+  }
+
+  return <StatusBody data={q.data} updatedAgo={updatedAgo} />;
+}
+
+function StatusBody({
+  data,
+  updatedAgo,
+}: {
+  data: StatusPayload;
+  updatedAgo: number | null;
+}) {
+  const meta = STATUS_META[data.overallStatus];
   return (
     <Layout>
       <article className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-20">
@@ -84,10 +156,11 @@ function StatusPage() {
               CrediFi Status
             </h1>
           </div>
-          <div className="text-xs text-muted-foreground font-mono">
-            Updated {lastUpdatedMinutesAgo} minute
-            {lastUpdatedMinutesAgo === 1 ? "" : "s"} ago
-          </div>
+          {updatedAgo !== null && (
+            <div className="text-xs text-muted-foreground font-mono">
+              Updated {updatedAgo} minute{updatedAgo === 1 ? "" : "s"} ago
+            </div>
+          )}
         </header>
 
         {/* OVERALL BANNER */}
@@ -104,10 +177,14 @@ function StatusPage() {
           />
           <div className="flex-1">
             <div className="font-display text-xl sm:text-2xl font-semibold">
-              {OVERALL_COPY[overallStatus]}
+              {OVERALL_COPY[data.overallStatus]}
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              All protocol components reporting healthy.
+              {data.overallStatus === "operational"
+                ? "All protocol components reporting healthy."
+                : data.overallStatus === "degraded"
+                  ? "Some protocol components are degraded. Operations may be slow or partial."
+                  : "One or more critical services are down. Borrowing is paused."}
             </div>
           </div>
           <span
@@ -125,7 +202,7 @@ function StatusPage() {
         <SectionHead eyebrow="Section A" title="Protocol Stats" />
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
-          {protocolStats.map((s) => (
+          {data.protocolStats.map((s) => (
             <div key={s.label} className="surface-card p-5">
               <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 {s.label}
@@ -151,76 +228,86 @@ function StatusPage() {
             <div className="flex items-baseline justify-between">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  TVL · last 14 days
+                  TVL · last 14 samples
                 </div>
                 <div className="font-display text-lg font-medium mt-1">
-                  Steady growth
+                  {data.tvlHistory.length >= 2
+                    ? "Trend"
+                    : "Sampling…"}
                 </div>
               </div>
-              <div className="text-xs text-primary font-mono">+16.9%</div>
+              {data.tvlHistory.length >= 2 && (
+                <TvlDelta points={data.tvlHistory} />
+              )}
             </div>
             <div className="h-56 mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={tvlHistory}
-                  margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="tvlFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor="var(--primary)"
-                        stopOpacity={0.35}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="var(--primary)"
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="day"
-                    stroke="var(--muted-foreground)"
-                    tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={1}
-                  />
-                  <YAxis
-                    stroke="var(--muted-foreground)"
-                    tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) => `$${(v / 1_000_000).toFixed(1)}M`}
-                    width={56}
-                  />
-                  <Tooltip
-                    cursor={{
-                      stroke: "var(--primary)",
-                      strokeOpacity: 0.4,
-                      strokeWidth: 1,
-                    }}
-                    contentStyle={{
-                      background: "var(--popover)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(value: number) => [
-                      `$${value.toLocaleString()}`,
-                      "TVL",
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="tvl"
-                    stroke="var(--primary)"
-                    strokeWidth={2}
-                    fill="url(#tvlFill)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {data.tvlHistory.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                  No samples yet — the indexer writes one every few minutes.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={data.tvlHistory}
+                    margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="tvlFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="0%"
+                          stopColor="var(--primary)"
+                          stopOpacity={0.35}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--primary)"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="day"
+                      stroke="var(--muted-foreground)"
+                      tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
+                      tickLine={false}
+                      axisLine={false}
+                      interval={1}
+                    />
+                    <YAxis
+                      stroke="var(--muted-foreground)"
+                      tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => formatHskAxis(Number(v))}
+                      width={56}
+                    />
+                    <Tooltip
+                      cursor={{
+                        stroke: "var(--primary)",
+                        strokeOpacity: 0.4,
+                        strokeWidth: 1,
+                      }}
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      formatter={(value) => {
+                        const n = typeof value === "number" ? value : Number(value ?? 0);
+                        return [`${n.toLocaleString()} HSK`, "TVL"];
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="tvl"
+                      stroke="var(--primary)"
+                      strokeWidth={2}
+                      fill="url(#tvlFill)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
@@ -232,7 +319,7 @@ function StatusPage() {
               Active loans, by tier
             </div>
             <div className="mt-5 space-y-4">
-              {tierDistribution.map((t) => (
+              {data.tierDistribution.map((t) => (
                 <div key={t.tier}>
                   <div className="flex items-baseline justify-between text-sm">
                     <span
@@ -266,13 +353,13 @@ function StatusPage() {
         </div>
 
         <div className="surface-card mt-6 overflow-hidden">
-          {systemComponents.map((c, i) => {
+          {data.systemComponents.map((c, i) => {
             const m = STATUS_META[c.status];
             return (
               <div
                 key={c.name}
                 className={`grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-4 ${
-                  i !== systemComponents.length - 1
+                  i !== data.systemComponents.length - 1
                     ? "border-b border-border/60"
                     : ""
                 }`}
@@ -317,14 +404,14 @@ function StatusPage() {
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             Incident History · last 30 days
           </div>
-          {incidents.length === 0 ? (
+          {data.incidents.length === 0 ? (
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Check className="size-4 text-primary" />
               No incidents reported in the last 30 days.
             </div>
           ) : (
             <ul className="mt-4 space-y-3">
-              {incidents.map((inc) => (
+              {data.incidents.map((inc) => (
                 <li
                   key={inc.date + inc.title}
                   className="border-l-2 border-warning pl-4"
@@ -350,26 +437,43 @@ function StatusPage() {
         </div>
 
         <div className="surface-card mt-6 p-5 sm:p-6 grid sm:grid-cols-3 gap-5">
-          <InfoCell label="Network" value={networkInfo.chainName} />
-          <InfoCell label="Chain ID" value={String(networkInfo.chainId)} mono />
-          <InfoCell label="Native Token" value={networkInfo.nativeToken} mono />
+          <InfoCell label="Network" value={data.networkInfo.chainName} />
+          <InfoCell label="Chain ID" value={String(data.networkInfo.chainId)} mono />
+          <InfoCell label="Native Token" value={data.networkInfo.nativeToken} mono />
         </div>
 
         <div className="surface-card mt-3 divide-y divide-border/60">
           <AddressRow
             label="CrediFiOracle"
-            address={networkInfo.oracleAddress}
-            explorer={networkInfo.explorerBase}
+            address={data.networkInfo.oracleAddress}
+            explorer={data.networkInfo.explorerBase}
           />
           <AddressRow
             label="CrediFiPool"
-            address={networkInfo.poolAddress}
-            explorer={networkInfo.explorerBase}
+            address={data.networkInfo.poolAddress}
+            explorer={data.networkInfo.explorerBase}
           />
         </div>
       </article>
     </Layout>
   );
+}
+
+function TvlDelta({ points }: { points: { tvl: number }[] }) {
+  const newest = points[points.length - 1]?.tvl ?? 0;
+  const oldest = points[0]?.tvl ?? 0;
+  if (oldest <= 0) {
+    return <div className="text-xs text-muted-foreground font-mono">—</div>;
+  }
+  const pct = ((newest - oldest) / oldest) * 100;
+  const sign = pct >= 0 ? "+" : "";
+  return <div className="text-xs text-primary font-mono">{sign}{pct.toFixed(1)}%</div>;
+}
+
+function formatHskAxis(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+  return v.toFixed(0);
 }
 
 function SectionHead({ eyebrow, title }: { eyebrow: string; title: string }) {

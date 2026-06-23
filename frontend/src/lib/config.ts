@@ -21,7 +21,7 @@ const DEMO_DEFAULTS = {
   VITE_API_URL: "http://localhost:3001",
   VITE_ORACLE_ADDRESS: "0x6345Ec7861cDCf8798F5D40348d91Cdbe077544B",
   VITE_POOL_ADDRESS: "0x0bFeE39682e4a5CA057A33838d06Ca7b43bF42Cc",
-  VITE_HSK_RPC_URL: "https://rpc.hsk.chain",
+  VITE_HSK_RPC_URL: "https://testnet.hsk.xyz",
   VITE_CHAIN_ID: "133",
 } as const;
 

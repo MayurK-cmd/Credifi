@@ -113,7 +113,10 @@ export async function signScore(
     score: result.score,
     tier: tierNumber,
     expiresAt: Number(expiresAt),
-    nonce,
+    // JSON has no bigint representation. Stringify at the boundary so
+    // Fastify's response serializer doesn't throw on the way out. The
+    // frontend re-parses with BigInt(bundle.nonce) at submit time.
+    nonce: nonce.toString() as unknown as bigint,
     v,
     r,
     s,

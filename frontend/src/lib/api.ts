@@ -18,6 +18,7 @@
  *     accept it as string and the caller can BigInt() it.
  */
 import type { ActiveLoan, CreditProfile, PoolStats, ScoreFactor, Tier } from "./mockData";
+import type { StatusPayload } from "./status-types";
 import { config } from "./config";
 import { formatEther } from "viem";
 
@@ -87,11 +88,13 @@ class BackendError extends Error {
   }
 }
 
-async function request<T>(method: "GET" | "POST", path: string): Promise<T> {
+async function request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
   const url = `${config.apiUrl}${path}`;
+  const hasBody = method === "POST" && body !== undefined;
   const res = await fetch(url, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: hasBody ? { "content-type": "application/json" } : {},
+    body: hasBody ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -186,3 +189,8 @@ function formatEtherSafe(wei: string): number {
 
 // Re-export the typed backend response shapes for the queries hook.
 export type { ScoreFactor, Tier };
+
+/** GET /api/status — full protocol + system status payload (see status-types.ts). */
+export async function getStatus(): Promise<StatusPayload> {
+  return request("GET", "/api/status");
+}
