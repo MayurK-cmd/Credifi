@@ -7,11 +7,16 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
+import { WagmiProvider, useAccount } from "wagmi";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { wagmiConfig } from "../lib/wagmi";
+import { walletStore } from "../lib/wallet-store";
 
 function NotFoundComponent() {
   return (
@@ -116,9 +121,36 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <Toaster theme="dark" position="top-right" richColors closeButton />
-    </QueryClientProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider modalSize="compact" theme={darkTheme()}>
+          <AccountBridge />
+          <Outlet />
+          <Toaster theme="dark" position="top-right" richColors closeButton />
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
+}
+
+/**
+ * Mirror wagmi's connection state into our local walletStore.
+ *
+ * The route components subscribe to `walletStore` via `useWallet()` (see
+ * `lib/wallet-store.ts`). The walletStore is the single source of truth for
+ * the UI; this effect is the only place where wagmi's `useAccount` writes
+ * into it. That way, RainbowKit owns the connection lifecycle (connect
+ * button, modals, disconnect, chain switch) and the rest of the app doesn't
+ * have to know wagmi exists.
+ */
+function AccountBridge(): null {
+  const { address, isConnected } = useAccount();
+  useEffect(() => {
+    if (isConnected && address) {
+      walletStore.setAddress(address);
+    } else if (!isConnected) {
+      walletStore.setAddress(null);
+    }
+  }, [address, isConnected]);
+  return null;
 }

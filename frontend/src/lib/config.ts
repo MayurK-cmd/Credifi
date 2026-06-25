@@ -23,6 +23,9 @@ const DEMO_DEFAULTS = {
   VITE_POOL_ADDRESS: "0x0bFeE39682e4a5CA057A33838d06Ca7b43bF42Cc",
   VITE_HSK_RPC_URL: "https://testnet.hsk.xyz",
   VITE_CHAIN_ID: "133",
+  // Placeholder WalletConnect projectId so dev builds don't crash. RainbowKit
+  // will warn in the console but the injected (MetaMask) connector still works.
+  VITE_WALLETCONNECT_PROJECT_ID: "your-walletconnect-project-id-here",
 } as const;
 
 function readConfig(key: keyof typeof DEMO_DEFAULTS): string {
@@ -49,4 +52,5 @@ export const config = {
   poolAddress: asAddress(readConfig("VITE_POOL_ADDRESS"), "VITE_POOL_ADDRESS"),
   rpcUrl: readConfig("VITE_HSK_RPC_URL"),
   chainId,
+  walletConnectProjectId: readConfig("VITE_WALLETCONNECT_PROJECT_ID"),
 } as const;
