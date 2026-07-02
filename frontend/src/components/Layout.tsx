@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { WalletButton } from "./WalletButton";
+import { config } from "@/lib/config";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
@@ -82,7 +83,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <a href="#" className="hover:text-foreground transition-colors">GitHub</a>
             <a href="#" className="hover:text-foreground transition-colors">Docs</a>
             <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-border">
-              Testnet · Experimental
+              {config.chainId === 133 ? "Testnet · Experimental" : "Mainnet"}
             </span>
           </div>
         </div>

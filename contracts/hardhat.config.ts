@@ -12,7 +12,7 @@ const REPORT_GAS = process.env.REPORT_GAS === "true";
 // HSK Chain chain IDs are placeholders until confirmed against the live RPC.
 // Patch the values below once the official testnet/mainnet chain IDs are known.
 const HSK_TESTNET_CHAIN_ID = 133;
-const HSK_MAINNET_CHAIN_ID = 9001;
+const HSK_MAINNET_CHAIN_ID = 177;
 
 const config: HardhatUserConfig = {
   mocha: {

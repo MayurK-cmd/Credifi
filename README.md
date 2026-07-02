@@ -55,7 +55,22 @@ Key files: `contracts/CrediFiOracle.sol`, `contracts/CrediFiPool.sol`;
 `frontend/src/lib/{wallet-actions,pool-reads,chain}.ts`,
 `frontend/src/routes/`, `frontend/src/components/WalletButton.tsx`.
 
-## Deployed contracts (HSK Chain testnet)
+## Deployed contracts
+
+### HSK Chain mainnet (live, chainId 177)
+
+| Contract | Address |
+| --- | --- |
+| `CrediFiOracle` | `0xEe39002BF9783DB5dac224Df968D0e3c5CE39a2B` |
+| `CrediFiPool`   | `0xDFf2C28CBb78C14Edc0d6F39cb624553D091297f` |
+
+- Network: HSK Chain mainnet · chainId `177`
+- RPC: `https://mainnet.hsk.xyz`
+- Explorer: `https://explorer.hsk.xyz`
+- Deployer: `0x213C5E563ab04727c5FdDDF271E5BF660e07955D`
+- Full record: `contracts/deployments/hskMainnet.json` and `contracts/MAINNET.md`
+
+### HSK Chain testnet (historical, chainId 133)
 
 | Contract | Address |
 | --- | --- |
@@ -65,11 +80,11 @@ Key files: `contracts/CrediFiOracle.sol`, `contracts/CrediFiPool.sol`;
 - Network: HSK Chain testnet · chainId `133`
 - RPC: `https://testnet.hsk.xyz`
 - Explorer: `https://testnet-explorer.hsk.xyz`
-- Deployer: `0x213C5E563ab04727c5FdDDF271E5BF660e07955D`
 - Full record: `contracts/deployments/hskTestnet.json`
 
-Mainnet is pending — run `npm run deploy:mainnet:dry` from `contracts/`
-before any live deployment.
+The frontend + backend default to mainnet out of the box. To run against
+testnet, copy the commented testnet block in `backend/.env` and
+`frontend/.env.local`.
 
 ## REST API (excerpt)
 
@@ -156,10 +171,11 @@ flip happens inside the test fixture.
 threshold liquidation, protocol fee on interest.
 
 **Deferred:** cross-chain scoring, variable rate curves, auction liquidations,
-withdraw UX polish, multi-wallet support beyond EIP-1193.
+withdraw UX polish, multi-wallet support beyond EIP-1193 / WalletConnect.
 
 ## Disclaimer
 
-Hackathon project. Contracts are **not audited**. Testnet only. The
-`RELAYER_PRIVATE_KEY` in `backend/.env` is a hot key — keep off-disk in
-production and rotate on compromise.
+Hackathon project. Contracts are **not audited**. The `RELAYER_PRIVATE_KEY`
+in `backend/.env` is a hot key — keep off-disk in production and rotate
+on compromise. Mainnet is live, so exercise the same caution you would
+on any deployed protocol.

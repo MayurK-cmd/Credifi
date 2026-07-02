@@ -2,13 +2,14 @@
  * Centralized env reader for the frontend.
  *
  * Vite injects `import.meta.env.VITE_*` at build time. We validate at module
- * load with mock/demo defaults so the hackathon UI can run in preview without
- * requiring local env setup. Real API / contract wiring can still override
- * these with VITE_* values when integration starts.
+ * load with mainnet defaults (the live deployment as of 2026-07-02) so a
+ * fresh checkout builds against the production app out of the box. Local
+ * dev against testnet is still supported — copy `frontend/.env.example`
+ * (or .env.local) to override the values.
  *
- * Source-of-truth values live in `frontend/.env.example` (the template the
- * user copies to `.env.local`). Defaults are sensible for local dev against
- * the testnet contracts deployed at `contracts/deployments/hskTestnet.json`.
+ * Source-of-truth values:
+ *   - Mainnet: `contracts/deployments/hskMainnet.json`, `contracts/MAINNET.md`
+ *   - Testnet: `contracts/deployments/hskTestnet.json`
  */
 function readEnv(key: string): string | undefined {
   // Vite exposes env vars via a Proxy on import.meta.env; bracket access is
@@ -17,19 +18,20 @@ function readEnv(key: string): string | undefined {
   return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
-const DEMO_DEFAULTS = {
+const MAINNET_DEFAULTS = {
   VITE_API_URL: "http://localhost:3001",
-  VITE_ORACLE_ADDRESS: "0x6345Ec7861cDCf8798F5D40348d91Cdbe077544B",
-  VITE_POOL_ADDRESS: "0x0bFeE39682e4a5CA057A33838d06Ca7b43bF42Cc",
-  VITE_HSK_RPC_URL: "https://testnet.hsk.xyz",
-  VITE_CHAIN_ID: "133",
+  // Live mainnet addresses (chainId 177, 2026-07-02 deploy).
+  VITE_ORACLE_ADDRESS: "0xEe39002BF9783DB5dac224Df968D0e3c5CE39a2B",
+  VITE_POOL_ADDRESS: "0xDFf2C28CBb78C14Edc0d6F39cb624553D091297f",
+  VITE_HSK_RPC_URL: "https://mainnet.hsk.xyz",
+  VITE_CHAIN_ID: "177",
   // Placeholder WalletConnect projectId so dev builds don't crash. RainbowKit
   // will warn in the console but the injected (MetaMask) connector still works.
   VITE_WALLETCONNECT_PROJECT_ID: "your-walletconnect-project-id-here",
 } as const;
 
-function readConfig(key: keyof typeof DEMO_DEFAULTS): string {
-  return readEnv(key) ?? DEMO_DEFAULTS[key];
+function readConfig(key: keyof typeof MAINNET_DEFAULTS): string {
+  return readEnv(key) ?? MAINNET_DEFAULTS[key];
 }
 
 function asAddress(value: string, key: string): `0x${string}` {

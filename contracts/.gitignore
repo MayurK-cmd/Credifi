@@ -12,3 +12,4 @@ deployments/
 dist/
 *.log
 .DS_Store
+MAINNET.md

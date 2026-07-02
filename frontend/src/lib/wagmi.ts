@@ -11,11 +11,11 @@
  * sensible SSR / batch / polling defaults, and returns a `wagmi.Config` you
  * can pass straight into `<WagmiProvider config={wagmiConfig}>`.
  *
- * The chain is HSK Chain (testnet by default, see `VITE_CHAIN_ID`). We pass
- * the same `hskTestnet` viem chain definition used elsewhere in the app so
- * the RPC URL, native currency, and decimals stay consistent between read
- * calls (`getPublicClient`) and write calls (the wallet client wagmi
- * builds for the active connector).
+ * The chain is HSK Chain (mainnet 177 by default, testnet 133 in `.env.local`).
+ * We pass the same `hskChain` viem chain definition used elsewhere in the app
+ * so the RPC URL, native currency, and decimals stay consistent between read
+ * calls (`getPublicClient`) and write calls (the wallet client wagmi builds
+ * for the active connector).
  *
  * The `projectId` is required by WalletConnect v2 — the placeholder in
  * `.env.example` is enough for dev (the injected connector still works,
@@ -24,7 +24,7 @@
  */
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { http } from "viem";
-import { hskTestnet } from "./chain";
+import { hskChain } from "./chain";
 import { config } from "./config";
 
 export const wagmiConfig = getDefaultConfig({
@@ -32,9 +32,9 @@ export const wagmiConfig = getDefaultConfig({
   appDescription: "AI credit scores for HSK Chain lending",
   appUrl: "https://credifi.xyz",
   projectId: config.walletConnectProjectId,
-  chains: [hskTestnet],
+  chains: [hskChain],
   transports: {
-    [hskTestnet.id]: http(config.rpcUrl),
+    [hskChain.id]: http(config.rpcUrl),
   },
   // Disable WalletConnect telemetry pings that have a long delay on a
   // single-chain demo. Not strictly necessary; speeds up boot.

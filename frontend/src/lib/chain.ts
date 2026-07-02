@@ -2,27 +2,29 @@
  * viem client helpers for HSK Chain.
  *
  *   getPublicClient()  — read-only RPC client, used by `readContract` calls.
- *   getWalletClient()  — EIP-1193 wallet wrapper (window.ethereum), used by
- *                        writeContract / signature requests.
+ *   getActiveWalletClient() (in `wallet-actions.ts`) — wagmi-connector-bound
+ *                        viem `WalletClient` for writeContract / signatures.
+ *                        Works for any active connector (injected, WalletConnect).
  *
- * Both clients are singletons built once per browser session. They share the
- * `hskTestnet` chain definition below so viem formats values (wei/HSK,
- * chainId in tx params) correctly without `viem/chains` (which would pin us
- * to whatever's upstream at build time).
+ * Both clients are singletons built once per browser session. They share
+ * the `hskChain` chain definition below so viem formats values (wei/HSK,
+ * chainId in tx params) correctly without `viem/chains` (which would pin
+ * us to whatever's upstream at build time).
+ *
+ * The chain object is named `hskChain` (not `hskTestnet`) so the same code
+ * works for both networks — the chainId/URL come from `config`, and the
+ * `testnet` flag flips based on `config.chainId === 133`.
  *
  * SSR safety:
- *   - `window.ethereum` is read lazily inside `getWalletClient()` so the
- *     import doesn't throw during server-side rendering.
- *   - If the browser hasn't injected a wallet, `getWalletClient()` returns
- *     `null`; UI surfaces that as "No HSK wallet detected".
+ *   - The public client is created lazily on first call.
+ *   - Wallet client creation goes through wagmi (see `wallet-actions.ts`)
+ *     so it picks up the active connector rather than reading
+ *     `window.ethereum` directly.
  */
 import {
   type Chain,
   type PublicClient,
-  type WalletClient,
   createPublicClient,
-  createWalletClient,
-  custom,
   defineChain,
   formatEther,
   http,
@@ -32,7 +34,7 @@ import { config } from "./config";
 
 const HSK_NATIVE = { name: "HSK", symbol: "HSK", decimals: 18 } as const;
 
-export const hskTestnet: Chain = defineChain({
+export const hskChain: Chain = defineChain({
   id: config.chainId,
   name: config.chainId === 133 ? "HSK Chain Testnet" : "HSK Chain",
   nativeCurrency: HSK_NATIVE,
@@ -52,17 +54,17 @@ let publicClient: PublicClient | null = null;
 export function getPublicClient(): PublicClient {
   if (!publicClient) {
     publicClient = createPublicClient({
-      chain: hskTestnet,
+      chain: hskChain,
       transport: http(config.rpcUrl),
     });
   }
   return publicClient;
 }
 
-// ---- Wallet client (EIP-1193) ----
-
-// Minimal EIP-1193 surface we use. We type-narrow `window.ethereum` to this
-// so viem's `custom()` transport is happy without pulling @types/eip1193.
+// Legacy EIP-1193 helpers — kept around for any callers that still want
+// a raw `window.ethereum` shim (the wagmi action functions in
+// `wallet-actions.ts` use wagmi's connector client instead, so they work
+// for both injected and WalletConnect).
 interface EthereumProvider {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
@@ -76,22 +78,9 @@ export function getEthereum(): EthereumProvider | null {
   return w.ethereum ?? null;
 }
 
-export function getWalletClient(): WalletClient | null {
-  const eth = getEthereum();
-  if (!eth) return null;
-  return createWalletClient({
-    chain: hskTestnet,
-    transport: custom({
-      // viem calls into this object; we forward EIP-1193 methods.
-      request: ({ method, params }) =>
-        eth.request({ method, params: params as unknown[] | undefined }),
-    }),
-  });
-}
-
 /**
- * Read-only convenience used by the WalletButton. Returns the currently
- * selected account (EIP-1193 `eth_accounts` does not prompt) or null.
+ * Read-only convenience. Returns the currently selected account
+ * (EIP-1193 `eth_accounts` does not prompt) or null.
  */
 export async function getCurrentAccount(): Promise<`0x${string}` | null> {
   const eth = getEthereum();

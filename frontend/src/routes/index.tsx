@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { WalletButton } from "@/components/WalletButton";
 import { HowItWorksSteps } from "@/components/HowItWorksSteps";
 import { TierComparisonRow } from "@/components/TierComparisonRow";
+import { config } from "@/lib/config";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +39,7 @@ function Hero() {
             <span className="size-1.5 rounded-full bg-primary" style={{ boxShadow: "0 0 8px var(--primary)" }} />
             <span className="font-mono uppercase tracking-wider text-[10px]">Live</span>
             <span className="opacity-50">·</span>
-            HashKey Chain Testnet
+            {config.chainId === 133 ? "HashKey Chain Testnet" : "HashKey Chain Mainnet"}
           </div>
           <h1 className="font-display text-5xl sm:text-7xl font-semibold tracking-tight leading-[1.02]">
             Your on-chain history<br />

@@ -29,7 +29,7 @@
 import { getWalletClient as getWagmiWalletClient } from "@wagmi/core";
 import { type Address, createPublicClient, decodeErrorResult, http } from "viem";
 import { ORACLE_ABI, POOL_ABI } from "./abi";
-import { hskTestnet, parseHsk } from "./chain";
+import { hskChain, parseHsk } from "./chain";
 import { config } from "./config";
 import { wagmiConfig } from "./wagmi";
 import { signScore as apiSignScore, type SignedScoreBundle } from "./api";
@@ -101,7 +101,7 @@ export async function signAndSubmitScore(
       bundle.s as `0x${string}`,
     ],
     account: address,
-    chain: hskTestnet,
+    chain: hskChain,
   });
 
   return { txHash: hash };
@@ -148,7 +148,7 @@ export async function borrow(args: {
       bundle.s as `0x${string}`,
     ],
     account: args.address,
-    chain: hskTestnet,
+    chain: hskChain,
   });
 
   // 2. Borrow.
@@ -170,7 +170,7 @@ export async function borrow(args: {
     ],
     value: collateralWei,
     account: args.address,
-    chain: hskTestnet,
+    chain: hskChain,
   });
 
   return { txHash, amountHsk: args.amountHsk, collateralHsk: args.collateralHsk };
@@ -192,7 +192,7 @@ export async function repay(address: `0x${string}`): Promise<{ txHash: `0x${stri
 
   // Read current debt via the public chain client (read-only).
   const publicClient = createPublicClient({
-    chain: hskTestnet,
+    chain: hskChain,
     transport: http(config.rpcUrl),
   });
   const debt = (await publicClient.readContract({
@@ -221,7 +221,7 @@ export async function repay(address: `0x${string}`): Promise<{ txHash: `0x${stri
     args: [],
     value,
     account: address,
-    chain: hskTestnet,
+    chain: hskChain,
   });
 
   // Wait for the receipt. Without this, the route's optimistic UI
@@ -230,7 +230,7 @@ export async function repay(address: `0x${string}`): Promise<{ txHash: `0x${stri
   // insufficient value, etc.) the user is told success while the
   // loan stays open on-chain.
   const publicClientForReceipt = createPublicClient({
-    chain: hskTestnet,
+    chain: hskChain,
     transport: http(config.rpcUrl),
   });
   const receipt = await publicClientForReceipt.waitForTransactionReceipt({ hash: txHash });
@@ -376,7 +376,7 @@ export async function deposit(args: {
     args: [],
     value: amountWei,
     account: args.address,
-    chain: hskTestnet,
+    chain: hskChain,
   });
 
   return { txHash };
@@ -397,7 +397,7 @@ export async function withdraw(args: {
     functionName: "withdraw",
     args: [args.shares],
     account: args.address,
-    chain: hskTestnet,
+    chain: hskChain,
   });
 
   return { txHash };
